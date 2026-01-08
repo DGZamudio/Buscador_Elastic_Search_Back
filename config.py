@@ -1,1 +1,2 @@
-INDEX_NAME="prueba"
+INDEX_NAME = "prueba"
+MIN_SCORE = 1.25

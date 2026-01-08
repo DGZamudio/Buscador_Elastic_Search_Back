@@ -7,45 +7,56 @@ from config import INDEX_NAME
 
 def _create_index(es, overwrite: bool):
     # Funcion para crear el indice dentro de elastic search
+    print(f"Creando indice {INDEX_NAME}")
     if es.indices.exists(index=INDEX_NAME):
+        print("El indice ya existe")
         if overwrite:
             es.indices.delete(index=INDEX_NAME, ignore_unavailable=True)
-
-        return
+            print("Sobrescribiendo indice...")
+        else:
+            return
+        
 
     return es.indices.create(
         index=INDEX_NAME,
-        body={
-            "settings":{
-                "analysis":{
-                    "default" : {
-                        "type":"custom",
-                        "tokenizer":"n_gram_tokenizer"
+        body = {
+            "mappings": {
+                "properties": {
+                    "title": {
+                        "type": "search_as_you_type"
+                    },
+                    "body": {
+                        "type": "text"
+                    },
+                    "Epigrafe": {
+                        "type": "search_as_you_type"
+                    },
+                    "Nombre": {
+                        "type": "text"
+                    },
+                    "Year": {
+                        "type": "date",
+                        "format": "yyyy"
+                    },
+                    "Tipo": {
+                        "type": "keyword"
+                    },
+                    "Entidad": {
+                        "type": "keyword"
+                    },
+                    "embedding": {
+                        "type": "dense_vector",
+                        "dims": 384,
+                        "index": True,
+                        "similarity": "cosine"
                     }
-                },
-                "tokenizer":{
-                    "n_gram_tokenizer":{
-                        "type":"edge_ngram",
-                        "min_gram":3,
-                        "max_gram":45,
-                        "token_chars":["letter","digit"]
-                    }
-                }
-            }
-        },
-        mappings={
-            "properties":{
-                "embedding": {
-                    "type":"dense_vector",
-                      'dims': 384,
-                      'index': True,
-                      'similarity': 'cosine'
                 }
             }
         }
     )
 
 def _insert_documents(file, es, num):
+    print("Insertando documentos...")
     try:
         data = json.load(open(file, "r", encoding="utf-8"))
         
@@ -72,4 +83,4 @@ def index_data(file, num = None, overwrite: bool = False):
     _insert_documents(es=es, num=num, file=file)
 
 if __name__ == "__main__":
-     index_data("./resultados/datos.json", 10, overwrite=True)
+     index_data("./resultados/datos.json", 2000, overwrite=True)
