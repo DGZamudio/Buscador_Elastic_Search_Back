@@ -4,6 +4,7 @@ from tqdm import tqdm
 from embeddings import get_embedding
 from utils import get_es_client
 from config import INDEX_NAME
+from elasticsearch import exceptions
 
 def _create_index(es, overwrite: bool):
     # Funcion para crear el indice dentro de elastic search
@@ -73,7 +74,11 @@ def _insert_documents(file, es, num):
         es.bulk(operations=operaciones)
         print("Los documentos fueron insertados")
     except Exception as e:
-        print(f"Error al abrir el documento: {e}")
+        if len(operaciones) > 0:
+            with open("resultados/procesados.json", "w") as f:
+                json.dump(operaciones, f, ensure_ascii=False, indent=2)
+
+        print(f"Error: {e}\n {len(operaciones)} archivos procesados guardados")
 
 
 def index_data(file, num = None, overwrite: bool = False):
@@ -83,4 +88,4 @@ def index_data(file, num = None, overwrite: bool = False):
     _insert_documents(es=es, num=num, file=file)
 
 if __name__ == "__main__":
-     index_data("./resultados/datos.json", 2000, overwrite=True)
+     index_data("./resultados/datos.json", 200, overwrite=True)
