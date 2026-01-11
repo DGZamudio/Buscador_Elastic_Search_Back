@@ -5,6 +5,7 @@ from typing import List, Optional
 from elasticsearch import Elasticsearch
 
 from config import MIN_SCORE
+from models import SearchFilters
 
 # Devuelve una conexion con elastic
 def get_es_client(max_retries: int = 1, sleep_time: int = 5) -> Elasticsearch:
@@ -22,38 +23,82 @@ def get_es_client(max_retries: int = 1, sleep_time: int = 5) -> Elasticsearch:
 
 # Construye el query de busqueda, agregando filtros
 def build_query(
-    query: dict, 
-    must: Optional[List[str]] = None, 
-    should: Optional[List[str]] = None,
-    year_from: Optional[str] = None,
-    year_to: Optional[str] = None
+    query         : dict,
+    filters       : SearchFilters
 ) -> dict:
-    if must:
-        if not query["bool"].get("must", None):
-            query["bool"]["must"] = []
+    bool_query = query.setdefault("bool", {})
+    
+    if filters.title:
+        bool_query.setdefault("must", []).append(
+            {"match": {"title": filters.title}}
+        )
+        
+    if filters.proximity and filters.proximity.query:
+        bool_query.setdefault("filter", []).append(
+            {
+                "match_phrase": {
+                    "body": {
+                        "query": filters.proximity.query,
+                        "slop": filters.proximity.distance
+                    }
+                }
+            }
+        )
+    
+    if filters.not_include:
+        must_not = bool_query.setdefault("must_not", [])
+        
+        for palabra in filters.not_include:
+            if palabra != "":
+                must_not.append({"match": { "body": palabra }})
+    
+    if filters.phrase:
+        bool_query.setdefault("filter", []).append(
+            {
+                "match_phrase": {
+                    "body": {
+                        "query": filters.phrase
+                    }
+                }
+            }
+        )
+        
+    if filters.document_type:
+        bool_query.setdefault("must", []).append(
+            {"match": {"Tipo": filters.document_type}}
+        )
+    
+    if filters.must:
+        must = bool_query.setdefault("must", [])
+        
+        for palabra in filters.must:
+            if palabra != "":
+                must.append({"match": {"body": palabra}})
 
-        for palabra in must:
-            query["bool"]["must"].append({"match": {"body": palabra}})
+    if filters.should:
+        should = bool_query.setdefault("should", [])
+        
+        for palabra in filters.should:
+            if palabra != "":
+                should.append({"match": {"body": palabra}})
+            
+    if filters.entity:
+        bool_query.setdefault("must", []).append(
+            {"match": {"Entidad": filters.entity}}
+        )
 
-    if should:
-        if not query["bool"].get("should", None):
-            query["bool"]["should"] = []
-
-        for palabra in should:
-            query["bool"]["should"].append({"match": {"body": palabra}})
-
-    if year_to and year_from:
-        query["bool"]["filter"] = [
+    if filters.years and filters.years.year_from is not None and filters.years.year_to is not None:
+        bool_query.setdefault("filter", []).append(
             {
                 "range": {
                     "Year": {
-                        "gte": f"{year_from}",
-                        "lte": f"{year_to}",
+                        "gte": f"{filters.years.year_from}",
+                        "lte": f"{filters.years.year_to}",
                         "format": "yyyy",
                     }
                 }
             }
-        ]
+        )
 
     return query
 

@@ -4,7 +4,6 @@ from tqdm import tqdm
 from embeddings import get_embedding
 from utils import get_es_client
 from config import INDEX_NAME
-from elasticsearch import exceptions
 
 def _create_index(es, overwrite: bool):
     # Funcion para crear el indice dentro de elastic search
@@ -27,13 +26,15 @@ def _create_index(es, overwrite: bool):
                         "type": "search_as_you_type"
                     },
                     "body": {
-                        "type": "text"
+                        "type": "text",
+                        "analyzer": "spanish"
                     },
                     "Epigrafe": {
                         "type": "search_as_you_type"
                     },
                     "Nombre": {
-                        "type": "text"
+                        "type": "text",
+                        "analyzer": "spanish"
                     },
                     "Year": {
                         "type": "date",
@@ -58,12 +59,12 @@ def _create_index(es, overwrite: bool):
 
 def _insert_documents(file, es, num):
     print("Insertando documentos...")
+    operaciones = []
     try:
         data = json.load(open(file, "r", encoding="utf-8"))
         
         num = num if num else len(data)
-
-        operaciones = []
+        
         for documento in tqdm(data[:num], total=num):
             operaciones.append({'index': {'_index':INDEX_NAME}})
             operaciones.append({
