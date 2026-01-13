@@ -1,12 +1,9 @@
-from typing import List, Optional
-
-from fastapi.responses import HTMLResponse
 from config import INDEX_NAME
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from elastic_transport import ObjectApiResponse
 from embeddings import get_embedding
-from models import SearchBody, SearchFilters
+from models import SearchBody
 from utils import build_query, filter_hits, get_es_client
 
 app = FastAPI()
@@ -55,12 +52,14 @@ async def regular_search(
         if body.filters:
             build_query(query=query, filters=body.filters)
 
+        skip, limit = body.skip * body.limit, body.limit
+
         response = es.search(
             index=INDEX_NAME,
             body={
                 "query": query,
-                "from": body.skip,
-                "size": body.limit,
+                "from": skip,
+                "size": limit,
                 "_source": {
                     "excludes": ["embedding"]
                 }
@@ -70,6 +69,9 @@ async def regular_search(
                 "hits.hits._score",
                 "hits.total",
             ],
+            sort=[
+                {"Numero": "asc"}
+            ]
         )
 
         total_hits = get_total_hits(response)
@@ -111,12 +113,10 @@ def semantic_search(
                         }
                     },
                     {
-                        "match": {
-                            "body": {
-                                "query": search_query,
-                                "boost": 0.5,
+                        "multi_match": {
+                            "query": search_query,
+                            "fields": ["Numero", "Tipo", "Entidad", "NombreEpigrafe", "Nombre"],
                             "minimum_should_match": "70%"
-                            }
                         }
                     }
                 ],
@@ -135,12 +135,14 @@ def semantic_search(
         if body.filters:
             build_query(query=query, filters=body.filters)
 
+        skip, limit = body.skip * body.limit, body.limit
+
         response = es.search(
             index=INDEX_NAME,
             body={
                 "query": query,
-                "from": body.skip * body.limit,
-                "size": body.limit,
+                "from": skip,
+                "size": limit,
                 "_source": {
                     "excludes": ["embedding"]
                 },
@@ -150,6 +152,9 @@ def semantic_search(
                 "hits.hits._score",
                 "hits.total",
             ],
+            sort=[
+                {"Numero": "asc"}
+            ]
         )
 
         hits = filter_hits(response)
@@ -206,7 +211,6 @@ def filter_fragments(
             "tipo": {
                 "terms": {
                     "field": "Tipo",
-                    "size": 50,
                     "order": {"_key": "asc"},
                     "min_doc_count": 1
                 },
@@ -214,7 +218,6 @@ def filter_fragments(
                     "entidad": {
                         "terms": {
                             "field": "Entidad",
-                            "size": 50,
                             "order": {"_key": "asc"},
                             "min_doc_count": 1
                         },
