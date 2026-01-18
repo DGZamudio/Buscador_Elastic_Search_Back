@@ -8,7 +8,7 @@ INDEX_MAPPING = {
                         "analyzer": "spanish"
                     },
                     "Epigrafe": {
-                        "type": "search_as_you_type"
+                        "type": "text"
                     },
                     "Nombre": {
                         "type": "text",
@@ -41,5 +41,5 @@ INDEX_MAPPING = {
                         "similarity": "cosine"
                     }
                 }
-MIN_SCORE = 1.25
+MIN_SCORE = 0.5
 MAX_BULK_SIZE = 5 * 1024 * 1024  # 5 MB / El limite default de transacciones http de elastic es 100mb pero es recomendable enviar chunks mas pequeños para que la conexión no muera

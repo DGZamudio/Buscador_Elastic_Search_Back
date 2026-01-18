@@ -13,7 +13,6 @@ def get_es_client(max_retries: int = 1, sleep_time: int = 5) -> Elasticsearch:
     while i < max_retries:
         try:
             es = Elasticsearch("http://localhost:9200")
-            pprint("Connected to Elasticsearch!")
             return es
         except Exception:
             pprint("Could not connect to Elasticsearch, retrying...")
@@ -30,7 +29,9 @@ def build_query(
     
     if filters.title:
         bool_query.setdefault("must", []).append(
-            {"match": {"title": filters.title}}
+            {"match_phrase_prefix": {
+                "title": filters.title
+            }}
         )
         
     if filters.proximity and filters.proximity.query:
@@ -108,7 +109,7 @@ def filter_hits(response):
 
     filtered_hits = [
         hit for hit in hits
-        if hit["_score"] >= MIN_SCORE
+        if hit.get("_score") is not None and hit["_score"] >= MIN_SCORE
     ]
 
     return filtered_hits

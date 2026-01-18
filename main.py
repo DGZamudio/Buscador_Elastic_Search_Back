@@ -29,19 +29,24 @@ async def regular_search(
                         "multi_match": {
                             "query": search_query,
                             "type": "bool_prefix",
-                            "fields": ["title", "title._2gram", "title._3gram", "Epigrafe", "Epigrafe._2gram", "Epigrafe._3gram"],
+                            "fields": ["title", "title._2gram", "title._3gram"],
                             "minimum_should_match": "70%"
                             
                         }
                     },
-                    
                     {
-                        "match": {
-                            "body": {
-                                "query": search_query,
-                                "boost": 0.5,
-                                "minimum_should_match": "70%"
-                            }
+                        "multi_match": {
+                            "query": search_query,
+                            "fields": ["Numero", "Tipo", "Entidad", "Nombre"],
+                            "minimum_should_match": "70%"
+                        }
+                    },
+                    {
+                        "multi_match": {
+                            "query": search_query,
+                            "fields": ["Epigrafe", "body"],
+                            "boost": 0.5,
+                            "minimum_should_match": "70%"
                         }
                     }
                 ],
@@ -68,9 +73,6 @@ async def regular_search(
                 "hits.hits._source",
                 "hits.hits._score",
                 "hits.total",
-            ],
-            sort=[
-                {"Numero": "asc"}
             ]
         )
 
@@ -108,14 +110,14 @@ def semantic_search(
                         "multi_match": {
                             "query": search_query,
                             "type": "bool_prefix",
-                            "fields": ["title", "title._2gram", "title._3gram", "Epigrafe", "Epigrafe._2gram", "Epigrafe._3gram"],
+                            "fields": ["title", "title._2gram", "title._3gram"],
                             "minimum_should_match": "70%"
                         }
                     },
                     {
                         "multi_match": {
                             "query": search_query,
-                            "fields": ["Numero", "Tipo", "Entidad", "NombreEpigrafe", "Nombre"],
+                            "fields": ["Numero", "Tipo", "Entidad", "NombreEpigrafe", "Nombre", "body", "Epigrafe"],
                             "minimum_should_match": "70%"
                         }
                     }
@@ -125,7 +127,7 @@ def semantic_search(
                         "knn": {
                             "field": "embedding",
                             "query_vector": embedded_query,
-                            'num_candidates': body.limit * (body.skip + 1)
+                            'num_candidates': 100
                         }
                     }
                 ]
@@ -151,9 +153,6 @@ def semantic_search(
                 "hits.hits._source",
                 "hits.hits._score",
                 "hits.total",
-            ],
-            sort=[
-                {"Numero": "asc"}
             ]
         )
 
@@ -168,6 +167,43 @@ def semantic_search(
         }
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))
+    
+@app.get("/api/v1/search/filters")
+def get_selects():
+    try:
+        es = get_es_client(max_retries=1, sleep_time=0)
+        
+        aggs = {
+            "tipos": {
+                "terms": {
+                    "field": "Tipo",
+                    "order": {"_key": "asc"},
+                    "min_doc_count": 1
+                },
+            },
+            "entidades": {
+                "terms": {
+                    "field": "Entidad",
+                    "order": {"_key": "asc"},
+                    "min_doc_count": 1
+                }
+            }
+        }
+        
+        response = es.search(
+            index=INDEX_NAME,
+            body={
+                "size": 0,
+                "aggs": aggs
+            }
+        )
+
+        return {
+            "filters": response.get("aggregations", {})
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
     
 @app.post("/api/v1/filter_fragments")
 def filter_fragments(
@@ -184,19 +220,24 @@ def filter_fragments(
                         "multi_match": {
                             "query": search_query,
                             "type": "bool_prefix",
-                            "fields": ["title", "title._2gram", "title._3gram", "Epigrafe", "Epigrafe._2gram", "Epigrafe._3gram"],
+                            "fields": ["title", "title._2gram", "title._3gram"],
                             "minimum_should_match": "70%"
                             
                         }
                     },
-                    
                     {
-                        "match": {
-                            "body": {
-                                "query": search_query,
-                                "boost": 0.5,
-                                "minimum_should_match": "70%"
-                            }
+                        "multi_match": {
+                            "query": search_query,
+                            "fields": ["Numero", "Tipo", "Entidad", "Nombre"],
+                            "minimum_should_match": "70%"
+                        }
+                    },
+                    {
+                        "multi_match": {
+                            "query": search_query,
+                            "fields": ["Epigrafe", "body"],
+                            "boost": 0.5,
+                            "minimum_should_match": "70%"
                         }
                     }
                 ],
