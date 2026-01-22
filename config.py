@@ -176,3 +176,24 @@ HIGHLIGHTER_CONFIG = {
                         }
                     }
                 }
+
+JERARQUIA_FACETA = { # Dejar el contenido de cada una en minúsculas para mejor coincidencia
+    "Normativa": [ 
+        "constituciones",
+        "actos legislativos",
+        "leyes",
+        "decretos",
+        "acuerdos"
+    ],
+    "Jurisprudencia": [
+        "corte constitucional",
+        "consejo de estado",
+        "comision de regulacion DE DISIPLINA",
+        "consejo nacional de la judicaruta",
+        "jep"
+    ]
+}
+
+LOOKUP_FACETA = {# Se usa un set al momento de comparar ya que es mucho mas eficiente que las listas | No se puede usar porque hay matches incompletos :(
+    k: set(v) for k, v in JERARQUIA_FACETA.items()
+}

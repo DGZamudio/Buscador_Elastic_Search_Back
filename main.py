@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from elastic_transport import ObjectApiResponse
 from embeddings import get_embedding
 from models import SearchBody
-from utils import build_query, filter_hits, get_es_client
+from utils import build_faceta, build_query, filter_hits, get_es_client
 
 app = FastAPI()
 app.add_middleware(
@@ -201,8 +201,10 @@ def filter_fragments(
             }
         )
 
+        faceta = build_faceta(response.get("aggregations", {}))
+
         return {
-            "filters": response.get("aggregations", {})
+            "filters": faceta
         }
 
     except Exception as e:

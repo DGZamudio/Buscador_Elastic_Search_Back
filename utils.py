@@ -1,10 +1,7 @@
 import time
 from pprint import pprint
-from typing import List, Optional
-
 from elasticsearch import Elasticsearch
-
-from config import MIN_SCORE
+from config import MIN_SCORE, JERARQUIA_FACETA
 from models import SearchFilters
 
 # Devuelve una conexion con elastic
@@ -113,3 +110,58 @@ def filter_hits(response):
     ]
 
     return filtered_hits
+
+# Construye la Jerarquía de la normativa y jurisprudencia
+def build_faceta(aggs: dict) -> dict:
+    if not aggs or "tipo" not in aggs:
+        return {}
+
+    normativa = []
+    jurisprudencia = []
+    otros = []
+
+    for tipo_doc in aggs["tipo"]["buckets"]:
+        tipo = tipo_doc["key"].lower()
+        matched = False
+
+        # Normativa
+        for clave in JERARQUIA_FACETA["Normativa"]:
+            if tipo.startswith(clave):
+                tipo_doc["_orden"] = clave  # <-- guardamos la palabra clave
+                normativa.append(tipo_doc)
+                matched = True
+                break
+
+        if matched:
+            continue
+
+        # Jurisprudencia
+        for clave in JERARQUIA_FACETA["Jurisprudencia"]:
+            if tipo.startswith(clave):
+                tipo_doc["_orden"] = clave
+                jurisprudencia.append(tipo_doc)
+                matched = True
+                break
+
+        if not matched:
+            otros.append(tipo_doc)
+
+    # Mapa de orden
+    orden_normativa = {tipo: idx for idx, tipo in enumerate(JERARQUIA_FACETA["Normativa"])}
+    orden_jurisprudencia = {tipo: idx for idx, tipo in enumerate(JERARQUIA_FACETA["Jurisprudencia"])}
+
+    # Sorting usando la palabra clave
+    normativa.sort(key=lambda x: orden_normativa.get(x["_orden"], 999))
+    jurisprudencia.sort(key=lambda x: orden_jurisprudencia.get(x["_orden"], 999))
+
+    faceta = {
+        "tipo": {
+            "doc_count_error_upper_bound": aggs["tipo"]["doc_count_error_upper_bound"],
+            "sum_other_doc_count": aggs["tipo"]["sum_other_doc_count"],
+            "normativa": normativa,
+            "jurisprudencia": jurisprudencia,
+            "other": otros,
+        }
+    }
+
+    return faceta
