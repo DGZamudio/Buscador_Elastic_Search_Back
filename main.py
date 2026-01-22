@@ -1,4 +1,4 @@
-from config import INDEX_NAME
+from config import HIGHLIGHTER_CONFIG, INDEX_NAME, regular_search_query, semantic_search_query
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from elastic_transport import ObjectApiResponse
@@ -22,37 +22,7 @@ async def regular_search(
 ):
     try:
         es = get_es_client(max_retries=1, sleep_time=0)
-        query = {
-            "bool": {
-                "should": [
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "type": "bool_prefix",
-                            "fields": ["title", "title._2gram", "title._3gram"],
-                            "minimum_should_match": "70%"
-                            
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": ["Numero", "Tipo", "Entidad", "Nombre"],
-                            "minimum_should_match": "70%"
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": ["Epigrafe", "body"],
-                            "boost": 0.5,
-                            "minimum_should_match": "70%"
-                        }
-                    }
-                ],
-                "minimum_should_match": 1
-            }
-        }
+        query = regular_search_query(search_query)
 
         if body.filters:
             build_query(query=query, filters=body.filters)
@@ -67,11 +37,13 @@ async def regular_search(
                 "size": limit,
                 "_source": {
                     "excludes": ["embedding"]
-                }
+                },
+                "highlight": HIGHLIGHTER_CONFIG
             },
             filter_path=[
                 "hits.hits._source",
                 "hits.hits._score",
+                "hits.hits.highlight",
                 "hits.total",
             ]
         )
@@ -103,36 +75,7 @@ def semantic_search(
         es = get_es_client(max_retries=1, sleep_time=0)
         embedded_query = get_embedding(search_query)
 
-        query = {
-            "bool": {
-                "should": [
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "type": "bool_prefix",
-                            "fields": ["title", "title._2gram", "title._3gram"],
-                            "minimum_should_match": "70%"
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": ["Numero", "Tipo", "Entidad", "NombreEpigrafe", "Nombre", "body", "Epigrafe"],
-                            "minimum_should_match": "70%"
-                        }
-                    }
-                ],
-                "must": [
-                    {
-                        "knn": {
-                            "field": "embedding",
-                            "query_vector": embedded_query,
-                            'num_candidates': 100
-                        }
-                    }
-                ]
-            }
-        }
+        query = semantic_search_query(search_query, embedded_query)
 
         if body.filters:
             build_query(query=query, filters=body.filters)
@@ -148,10 +91,12 @@ def semantic_search(
                 "_source": {
                     "excludes": ["embedding"]
                 },
+                "highlight": HIGHLIGHTER_CONFIG
             },
             filter_path=[
                 "hits.hits._source",
                 "hits.hits._score",
+                "hits.hits.highlight",
                 "hits.total",
             ]
         )
@@ -213,37 +158,7 @@ def filter_fragments(
     try:
         es = get_es_client(max_retries=1, sleep_time=0)
 
-        query = {
-            "bool": {
-                "should": [
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "type": "bool_prefix",
-                            "fields": ["title", "title._2gram", "title._3gram"],
-                            "minimum_should_match": "70%"
-                            
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": ["Numero", "Tipo", "Entidad", "Nombre"],
-                            "minimum_should_match": "70%"
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": ["Epigrafe", "body"],
-                            "boost": 0.5,
-                            "minimum_should_match": "70%"
-                        }
-                    }
-                ],
-                "minimum_should_match": 1
-            }
-        }
+        query = regular_search_query(search_query)
 
         if body.filters:
             build_query(query=query, filters=body.filters)
