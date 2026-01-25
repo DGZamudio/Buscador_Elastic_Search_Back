@@ -62,8 +62,8 @@ def build_query(
         )
         
     if filters.document_type:
-        bool_query.setdefault("must", []).append(
-            {"match": {"Tipo": filters.document_type}}
+        bool_query.setdefault("filter", []).append(
+            {"term": {"Tipo.keyword": filters.document_type}}
         )
     
     if filters.must:
@@ -81,8 +81,8 @@ def build_query(
                 should.append({"match": {"body": palabra}})
             
     if filters.entity:
-        bool_query.setdefault("must", []).append(
-            {"match": {"Entidad": filters.entity}}
+        bool_query.setdefault("filter", []).append(
+            {"term": {"Entidad.keyword": filters.entity}}
         )
 
     if filters.years and filters.years.year_from is not None and filters.years.year_to is not None:

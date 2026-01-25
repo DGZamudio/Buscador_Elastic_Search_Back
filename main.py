@@ -121,14 +121,14 @@ def get_selects():
         aggs = {
             "tipos": {
                 "terms": {
-                    "field": "Tipo",
+                    "field": "Tipo.keyword",
                     "order": {"_key": "asc"},
                     "min_doc_count": 1
                 },
             },
             "entidades": {
                 "terms": {
-                    "field": "Entidad",
+                    "field": "Entidad.keyword",
                     "order": {"_key": "asc"},
                     "min_doc_count": 1
                 }
@@ -166,14 +166,14 @@ def filter_fragments(
         aggs = {
             "tipo": {
                 "terms": {
-                    "field": "Tipo",
+                    "field": "Tipo.keyword",
                     "order": {"_key": "asc"},
                     "min_doc_count": 1
                 },
                 "aggs": {
                     "entidad": {
                         "terms": {
-                            "field": "Entidad",
+                            "field": "Entidad.keyword",
                             "order": {"_key": "asc"},
                             "min_doc_count": 1
                         },

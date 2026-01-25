@@ -1,14 +1,16 @@
 INDEX_NAME = "prueba" # Nombre del indice en elasticsearch
 INDEX_MAPPING = { # Mapeo de campos del indice
                     "title": {
-                        "type": "search_as_you_type"
+                        "type": "search_as_you_type",
+                        "analyzer": "spanish",
                     },
                     "body": {
                         "type": "text",
                         "analyzer": "spanish"
                     },
                     "Epigrafe": {
-                        "type": "text"
+                        "type": "text",
+                        "analyzer": "spanish"
                     },
                     "Nombre": {
                         "type": "text",
@@ -16,16 +18,34 @@ INDEX_MAPPING = { # Mapeo de campos del indice
                     },
                     "Numero": {
                         "type": "keyword",
+                        "fields": {
+                            "text": {
+                                "type": "text",
+                                "analyzer": "spanish"
+                            }
+                        }
                     },
                     "Year": {
                         "type": "date",
                         "format": "yyyy"
                     },
                     "Tipo": {
-                        "type": "keyword"
+                        "type": "text",
+                        "analyzer": "spanish",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword"
+                            }
+                        }
                     },
                     "Entidad": {
-                        "type": "keyword"
+                        "type": "text",
+                        "analyzer": "spanish",
+                        "fields": {
+                            "keyword": {
+                                "type": "keyword"
+                            }
+                        }
                     },
                     "NombreEpigrafe": {
                         "type": "text",
@@ -48,119 +68,88 @@ MAX_BULK_SIZE = 5 * 1024 * 1024  # 5 MB / El limite default de transacciones htt
 # Querys para busquedas
 def regular_search_query(search_query):
     return {
-            "bool": {
-                "should": [
-                    {
-                        "match_phrase": {
-                            "title": {
-                                "query": search_query,
-                                "boost": 12
-                            }
-                        }
-                    },
-                    {
-                        "match": {
-                            "Numero": {
-                                "query": search_query,
-                                "boost": 15
-                            }
-                        }
-                    },
-                    {
-                        "multi_match": {
+        "bool": {
+            "should": [
+                {
+                    "match_phrase": {
+                        "title": {
                             "query": search_query,
-                            "fields": [
-                                "Tipo^5",
-                                "Entidad^4",
-                                "Nombre^3",
-                                "title^6"
-                            ],
-                            "minimum_should_match": "50%"
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "type": "bool_prefix",
-                            "fields": [
-                                "title^4",
-                                "title._2gram",
-                                "title._3gram"
-                            ]
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": ["Epigrafe", "body"],
-                            "boost": 0.3,
-                            "minimum_should_match": "30%"
+                            "boost": 10
                         }
                     }
-                ],
-                "minimum_should_match": 1
-            }
+                },
+                {
+                    "term": {
+                        "Numero": {
+                            "value": search_query,
+                            "boost": 40
+                        }
+                    }
+                },
+                {
+                    "term": {
+                        "Tipo.keyword": {
+                            "value": search_query,
+                            "boost": 25
+                        }
+                    }
+                },
+                {
+                    "term": {
+                        "Entidad.keyword": {
+                            "value": search_query,
+                            "boost": 25
+                        }
+                    }
+                },
+                {
+                    "multi_match": {
+                        "query": search_query,
+                        "fields": [
+                            "title^6",
+                            "Nombre^4",
+                            "Numero.text^4",
+                            "Tipo^4",
+                            "Entidad^4",
+                            "Epigrafe^2",
+                            "body"
+                        ],
+                        "operator": "or",
+                        "type": "cross_fields",
+                        "minimum_should_match": "25%"
+                    }
+                },
+                {
+                    "multi_match": {
+                        "query": search_query,
+                        "type": "bool_prefix",
+                        "fields": [
+                            "title^4",
+                            "title._2gram",
+                            "title._3gram"
+                        ],
+                        "fuzziness": "AUTO"
+                    }
+                }
+            ],
+            "minimum_should_match": 1
         }
+    }
 
 def semantic_search_query(search_query, embedding_vector):
-    return {
-            "bool": {
-                "should": [
-                    {
-                        "match_phrase": {
-                            "title": {
-                                "query": search_query,
-                                "boost": 12
-                            }
-                        }
-                    },
-                    {
-                        "term": {
-                            "Numero": {
-                                "value": search_query,
-                                "boost": 15
-                            }
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "fields": [
-                                "Numero^5",
-                                "Tipo^4",
-                                "Entidad^3",
-                                "NombreEpigrafe^3",
-                                "Nombre^3",
-                                "title^6",
-                                "body",
-                                "Epigrafe"
-                            ],
-                            "minimum_should_match": "70%"
-                        }
-                    },
-                    {
-                        "multi_match": {
-                            "query": search_query,
-                            "type": "bool_prefix",
-                            "fields": [
-                                "title^5",
-                                "title._2gram",
-                                "title._3gram"
-                            ]
-                        }
-                    },
-                    {
-                        "knn": {
-                            "field": "embedding",
-                            "query_vector": embedding_vector,
-                            "num_candidates": 100,
-                            "boost": 0.5
-                        }
-                    }
-                ],
-                "minimum_should_match": 1
+    semantic_query = regular_search_query(search_query)
+    
+    semantic_query["bool"]["should"].append(
+        {
+            "knn": {
+                "field": "embedding",
+                "query_vector": embedding_vector,
+                "num_candidates": 150,
+                "boost": 0.7
             }
         }
+    )
+    return semantic_query
     
 HIGHLIGHTER_CONFIG = {
                     "pre_tags": ["<mark class='es-highlight'>"],
