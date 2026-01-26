@@ -77,4 +77,4 @@ def index_data(file, num = None, overwrite: bool = False):
     _insert_documents(es=es, num=num, file=file)
 
 if __name__ == "__main__":
-     index_data("./resultados/datos.json", 5000, overwrite=True)
+     index_data("./resultados/datos.json", overwrite=True)

@@ -12,6 +12,7 @@ def htm_to_json(path):
         data = {}
         data["title"] = soup.title.text if soup.title else None
         data["body"] = soup.body.text if soup.body else None
+        data["doc-name"] = path.split("/")[-1]
 
         metas = soup.find_all("meta")
         for meta in metas:

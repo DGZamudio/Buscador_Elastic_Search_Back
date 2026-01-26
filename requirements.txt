@@ -4,3 +4,4 @@ beautifulsoup4
 fastapi
 tqdm
 numpy==1.26.4
+lxml
