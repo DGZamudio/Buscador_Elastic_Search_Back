@@ -1,10 +1,10 @@
-from config import HIGHLIGHTER_CONFIG, INDEX_NAME, regular_search_query, semantic_search_query
+from config import HIGHLIGHTER_CONFIG, INDEX_NAME, MIN_SCORE_THRESHOLD, regular_search_query, semantic_search_query
 from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from elastic_transport import ObjectApiResponse
 from embeddings import get_embedding
 from models import SearchBody
-from utils import build_faceta, build_query, filter_hits, get_es_client
+from utils import build_faceta, build_query, get_es_client
 
 app = FastAPI()
 app.add_middleware(
@@ -53,7 +53,7 @@ async def regular_search(
 
         return {
             "hits": response["hits"].get("hits", []),
-            "max_pages": max_pages,
+            "max_pages": total_hits,
         }
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))
@@ -88,6 +88,7 @@ def semantic_search(
                 "query": query,
                 "from": skip,
                 "size": limit,
+                "min_score": MIN_SCORE_THRESHOLD,
                 "_source": {
                     "excludes": ["embedding"]
                 },
@@ -101,14 +102,12 @@ def semantic_search(
             ]
         )
 
-        hits = filter_hits(response)
-
         total_hits = get_total_hits(response)
         max_pages = calculate_max_pages(total_hits, body.limit)
 
         return {
-            "hits": hits,
-            "max_pages": max_pages,
+            "hits": response["hits"].get("hits", []),
+            "max_pages": total_hits,
         }
     except Exception as e:
         return HTTPException(status_code=500, detail=str(e))

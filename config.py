@@ -64,7 +64,7 @@ INDEX_MAPPING = { # Mapeo de campos del indice
                         "similarity": "cosine"
                     }
                 }
-MIN_SCORE = 0.5 # Puntaje minimo para considerar un resultado relevante
+MIN_SCORE_THRESHOLD = 0.5 # Puntaje minimo para considerar un resultado relevante
 MAX_BULK_SIZE = 5 * 1024 * 1024  # 5 MB / El limite default de transacciones http de elastic es 100mb pero es recomendable enviar chunks mas pequeños para que la conexión no muera
 
 
@@ -148,21 +148,26 @@ def semantic_search_query(search_query, embedding_vector):
                 "field": "embedding",
                 "query_vector": embedding_vector,
                 "num_candidates": 150,
-                "boost": 0.7
+                "boost": 2.0
             }
         }
     )
+    # Increase minimum_should_match to require more matches, filtering out weak results
+    semantic_query["bool"]["minimum_should_match"] = 2
+    
     return semantic_query
     
 HIGHLIGHTER_CONFIG = {
                     "pre_tags": ["<mark class='es-highlight'>"],
                     "post_tags": ["</mark>"],
+                    "max_analyzed_offset": 1000000,
                     "fields": {
                         "Epigrafe": {
                             "fragment_size": 250,
                             "number_of_fragments": 1
                         },
                         "body": {
+                            "max_analyzed_offset": 1000000,
                             "fragment_size": 250,
                             "number_of_fragments": 1
                         }

@@ -1,7 +1,7 @@
 import time
 from pprint import pprint
 from elasticsearch import Elasticsearch
-from config import MIN_SCORE, JERARQUIA_FACETA
+from config import JERARQUIA_FACETA
 from models import SearchFilters
 
 # Devuelve una conexion con elastic
@@ -99,17 +99,6 @@ def build_query(
         )
 
     return query
-
-# Filtra los documentos que devuelve la búsqueda y solo agrega los que superan el mínimo de puntuación, asi evitando resultados alejados
-def filter_hits(response):
-    hits = response["hits"]["hits"]
-
-    filtered_hits = [
-        hit for hit in hits
-        if hit.get("_score") is not None and hit["_score"] >= MIN_SCORE
-    ]
-
-    return filtered_hits
 
 # Construye la Jerarquía de la normativa y jurisprudencia
 def build_faceta(aggs: dict) -> dict:
